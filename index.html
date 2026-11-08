@@ -79,7 +79,36 @@ $("swap").onclick=()=>{direction=direction==="en-es"?"es-en":"en-es";const old=$
 $("clear").onclick=()=>{$("source").value="";$("result").textContent="Your translation will appear here.";$("translationStatus").textContent="";lastTranslation="";$("play").disabled=true;$("copy").disabled=true};
 async function translate(){const text=$("source").value.trim();if(!text){$("translationStatus").textContent="Enter or speak something first.";return}const l=langs();$("translate").disabled=true;$("translationStatus").textContent="Translating…";try{const url="https://api.mymemory.translated.net/get?q="+encodeURIComponent(text)+"&langpair="+encodeURIComponent(l.pair);const res=await fetch(url);if(!res.ok)throw new Error("Translation service unavailable");const data=await res.json();const translated=data?.responseData?.translatedText;if(!translated)throw new Error(data?.responseDetails||"No translation returned");lastTranslation=translated;$("result").textContent=translated;$("play").disabled=false;$("copy").disabled=false;$("translationStatus").textContent="Translation ready · "+l.to;const arr=JSON.parse(localStorage.getItem(historyKey)||"[]");arr.unshift({from:text,to:translated,dir:direction,at:new Date().toISOString()});localStorage.setItem(historyKey,JSON.stringify(arr.slice(0,12)));renderHistory()}catch(e){$("translationStatus").textContent="Could not translate: "+e.message+". Check your connection and try again."}finally{$("translate").disabled=false}}
 $("translate").onclick=translate;
-$("play").onclick=()=>{if(!lastTranslation)return;speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(lastTranslation);u.lang=langs().toCode;const voices=speechSynthesis.getVoices();const match=voices.find(v=>v.lang.toLowerCase().startsWith(u.lang.slice(0,2)));if(match)u.voice=match;speechSynthesis.speak(u)};
+function speakTranslation(){
+  const text=lastTranslation || $("result").textContent;
+  if(!text || text==="Your translation will appear here."){
+    $("translationStatus").textContent="Translate a phrase first, then tap Play translation."; return;
+  }
+  if(!(window.speechSynthesis && window.SpeechSynthesisUtterance)){
+    $("translationStatus").textContent="This browser does not provide built-in speech. Try opening the app in Safari, or use the iPhone Speak Screen feature."; return;
+  }
+  const synth=window.speechSynthesis;
+  synth.cancel();
+  const u=new SpeechSynthesisUtterance(text);
+  u.lang=langs().toCode;
+  u.rate=0.92;
+  u.pitch=1;
+  const chooseVoice=()=>{
+    const voices=synth.getVoices()||[];
+    const target=u.lang.toLowerCase();
+    const exact=voices.find(v=>v.lang.toLowerCase()===target);
+    const regional=voices.find(v=>v.lang.toLowerCase().startsWith(target.slice(0,2)));
+    if(exact||regional)u.voice=exact||regional;
+  };
+  chooseVoice();
+  u.onstart=()=>{$("translationStatus").textContent="Playing audio…";};
+  u.onend=()=>{$("translationStatus").textContent="Audio finished.";};
+  u.onerror=(e)=>{$("translationStatus").textContent="Speech playback failed ("+(e.error||"unknown error")+"). Open this page in Safari and try again.";};
+  try{ synth.resume(); synth.speak(u); }
+  catch(e){$("translationStatus").textContent="Could not start audio: "+e.message;}
+}
+$("play").onclick=speakTranslation;
+if(window.speechSynthesis){window.speechSynthesis.onvoiceschanged=()=>{};}
 $("copy").onclick=async()=>{try{await navigator.clipboard.writeText(lastTranslation);$("translationStatus").textContent="Copied."}catch{$("translationStatus").textContent="Copy is not available in this browser."}};
 $("mic").onclick=()=>{const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR){$("micStatus").textContent="Speech recognition is not available here. Tap the microphone on your iPhone keyboard to dictate.";return}if(recognition){recognition.stop();recognition=null;return}recognition=new SR();recognition.lang=langs().fromCode;recognition.interimResults=true;recognition.continuous=false;recognition.onstart=()=>{$("mic").textContent="■ Stop";$("micStatus").textContent="Listening…";$("micStatus").classList.add("recording")};recognition.onresult=e=>{let s="";for(let i=e.resultIndex;i<e.results.length;i++)s+=e.results[i][0].transcript;$("source").value=s};recognition.onerror=e=>{$("micStatus").textContent="Microphone issue: "+e.error+". You can use keyboard dictation instead."};recognition.onend=()=>{$("mic").textContent="🎙 Speak";$("micStatus").textContent="Speech captured. Tap Translate."; $("micStatus").classList.remove("recording");recognition=null};try{recognition.start()}catch(e){$("micStatus").textContent="Could not start microphone. Try again or use keyboard dictation."}};
 function renderHistory(){let a=[];try{a=JSON.parse(localStorage.getItem(historyKey)||"[]")}catch{};$("history").innerHTML=a.length?a.map(x=>`<div class="history-item"><div class="from">${esc(x.from)}</div><div class="to">${esc(x.to)}</div></div>`).join(""):'<div class="note">Your recent translations will appear here on this device.</div>'}
