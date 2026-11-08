@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#17231f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Lingua Bridge">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Lingua Bridge · English ⇄ Español</title>
+<style>
+:root{--bg:#f3f2ec;--card:#fffefa;--ink:#202a25;--muted:#70786f;--green:#315c4a;--green2:#e4eee7;--line:#e1e4dc;--red:#a34d3d}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;padding-bottom:calc(26px + env(safe-area-inset-bottom))}
+header{background:#17231f;color:#f5f3e9;padding:calc(24px + env(safe-area-inset-top)) 20px 23px}
+.eyebrow{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:#b8c8bd;font-weight:700}
+h1{font:500 32px/1.05 Georgia,serif;margin:11px 0 8px}header p{color:#c2cbc4;font-size:13px;margin:0}
+main{max-width:650px;margin:auto;padding:18px 15px}
+.switch{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:16px}
+.lang{font-size:14px;font-weight:700}.swap{border:1px solid var(--line);background:var(--card);color:var(--green);border-radius:50%;width:42px;height:42px;font-size:20px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:17px;margin-bottom:14px;box-shadow:0 4px 18px #17231f08}
+.label{font-size:11px;font-weight:800;letter-spacing:.11em;text-transform:uppercase;color:var(--muted);margin-bottom:9px}
+textarea{width:100%;min-height:125px;resize:vertical;border:0;background:transparent;font:20px/1.45 -apple-system,sans-serif;color:var(--ink);outline:none;padding:0}
+textarea::placeholder{color:#a7aca3}
+.tools{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+button{border:0;border-radius:12px;padding:12px 15px;font-size:14px;font-weight:700;cursor:pointer;background:var(--green);color:white}
+button.light{background:var(--green2);color:var(--green)}button.outline{background:transparent;border:1px solid var(--line);color:var(--ink)}button:disabled{opacity:.45}
+.primary{width:100%;padding:15px;font-size:15px;margin:4px 0 14px}
+.output{font:21px/1.45 Georgia,serif;white-space:pre-wrap;min-height:44px;overflow-wrap:anywhere}
+.note{font-size:12px;line-height:1.5;color:var(--muted)}
+.status{font-size:12px;color:var(--muted);min-height:18px;margin-top:9px}
+.recording{color:var(--red)!important}
+.history-item{border-top:1px solid var(--line);padding:12px 0}.history-item:first-child{border-top:0}
+.history-item .from{font-size:13px;color:var(--muted)}.history-item .to{font:17px Georgia,serif;margin-top:5px}
+footer{text-align:center;color:var(--muted);font-size:11px;padding:12px 20px}
+@media(min-width:600px){header{padding-left:max(22px,calc((100vw - 610px)/2));padding-right:max(22px,calc((100vw - 610px)/2))}}
+</style>
+</head>
+<body>
+<header><div class="eyebrow">Your pocket interpreter</div><h1>Lingua Bridge</h1><p>Speak naturally. Understand each other.</p></header>
+<main>
+<div class="switch"><span class="lang" id="fromLang">English</span><button class="swap" id="swap" aria-label="Swap languages">⇄</button><span class="lang" id="toLang">Español</span></div>
+<section class="card">
+<div class="label" id="inputLabel">English · Type or speak</div>
+<textarea id="source" placeholder="Type a word or sentence…"></textarea>
+<div class="tools">
+<button id="mic" class="light">🎙 Speak</button>
+<button id="clear" class="outline">Clear</button>
+</div>
+<div class="status" id="micStatus" aria-live="polite">Tap Speak and allow microphone access.</div>
+</section>
+<button class="primary" id="translate">Translate →</button>
+<section class="card">
+<div class="label" id="outputLabel">Spanish translation</div>
+<div class="output" id="result">Your translation will appear here.</div>
+<div class="tools"><button id="play" class="light" disabled>🔊 Play translation</button><button id="copy" class="outline" disabled>Copy</button></div>
+<div class="status" id="translationStatus" aria-live="polite"></div>
+</section>
+<section class="card">
+<div class="label">Recent translations</div>
+<div id="history"><div class="note">Your recent translations will appear here on this device.</div></div>
+<div class="tools"><button id="clearHistory" class="outline">Clear history</button></div>
+</section>
+<section class="card">
+<div class="label">How voice works</div>
+<p class="note">Tap Speak, say a phrase, then tap Translate. On supported browsers, speech is transcribed automatically. If speech recognition is unavailable, use the microphone on your iPhone keyboard to dictate into the text box. Tap Play translation to hear the result spoken aloud.</p>
+<p class="note"><b>Privacy:</b> typed text is sent to the free MyMemory translation service when you translate. Microphone speech recognition is provided by your browser/device and may use its speech service. Do not enter sensitive or confidential information.</p>
+</section>
+</main>
+<footer>LINGUA BRIDGE · English ⇄ Spanish · Personal use</footer>
+<script>
+const $=id=>document.getElementById(id);
+let direction="en-es",lastTranslation="",recognition=null;
+const historyKey="lingua-bridge-history-v1";
+const langs=()=>direction==="en-es"?{from:"English",to:"Español",fromCode:"en-US",toCode:"es-ES",pair:"en|es"}:{from:"Español",to:"English",fromCode:"es-ES",toCode:"en-US",pair:"es|en"};
+function paint(){const l=langs();$("fromLang").textContent=l.from;$("toLang").textContent=l.to;$("inputLabel").textContent=l.from+" · Type or speak";$("outputLabel").textContent=l.to+" translation";$("source").placeholder=direction==="en-es"?"Type a word or sentence…":"Escribe una palabra o una frase…";$("result").textContent="Your translation will appear here.";$("translationStatus").textContent="";lastTranslation="";$("play").disabled=true;$("copy").disabled=true}
+$("swap").onclick=()=>{direction=direction==="en-es"?"es-en":"en-es";const old=$("result").textContent;if(lastTranslation){$("source").value=lastTranslation}else if(old!=="Your translation will appear here."){$("source").value=old}paint()};
+$("clear").onclick=()=>{$("source").value="";$("result").textContent="Your translation will appear here.";$("translationStatus").textContent="";lastTranslation="";$("play").disabled=true;$("copy").disabled=true};
+async function translate(){const text=$("source").value.trim();if(!text){$("translationStatus").textContent="Enter or speak something first.";return}const l=langs();$("translate").disabled=true;$("translationStatus").textContent="Translating…";try{const url="https://api.mymemory.translated.net/get?q="+encodeURIComponent(text)+"&langpair="+encodeURIComponent(l.pair);const res=await fetch(url);if(!res.ok)throw new Error("Translation service unavailable");const data=await res.json();const translated=data?.responseData?.translatedText;if(!translated)throw new Error(data?.responseDetails||"No translation returned");lastTranslation=translated;$("result").textContent=translated;$("play").disabled=false;$("copy").disabled=false;$("translationStatus").textContent="Translation ready · "+l.to;const arr=JSON.parse(localStorage.getItem(historyKey)||"[]");arr.unshift({from:text,to:translated,dir:direction,at:new Date().toISOString()});localStorage.setItem(historyKey,JSON.stringify(arr.slice(0,12)));renderHistory()}catch(e){$("translationStatus").textContent="Could not translate: "+e.message+". Check your connection and try again."}finally{$("translate").disabled=false}}
+$("translate").onclick=translate;
+$("play").onclick=()=>{if(!lastTranslation)return;speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(lastTranslation);u.lang=langs().toCode;const voices=speechSynthesis.getVoices();const match=voices.find(v=>v.lang.toLowerCase().startsWith(u.lang.slice(0,2)));if(match)u.voice=match;speechSynthesis.speak(u)};
+$("copy").onclick=async()=>{try{await navigator.clipboard.writeText(lastTranslation);$("translationStatus").textContent="Copied."}catch{$("translationStatus").textContent="Copy is not available in this browser."}};
+$("mic").onclick=()=>{const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR){$("micStatus").textContent="Speech recognition is not available here. Tap the microphone on your iPhone keyboard to dictate.";return}if(recognition){recognition.stop();recognition=null;return}recognition=new SR();recognition.lang=langs().fromCode;recognition.interimResults=true;recognition.continuous=false;recognition.onstart=()=>{$("mic").textContent="■ Stop";$("micStatus").textContent="Listening…";$("micStatus").classList.add("recording")};recognition.onresult=e=>{let s="";for(let i=e.resultIndex;i<e.results.length;i++)s+=e.results[i][0].transcript;$("source").value=s};recognition.onerror=e=>{$("micStatus").textContent="Microphone issue: "+e.error+". You can use keyboard dictation instead."};recognition.onend=()=>{$("mic").textContent="🎙 Speak";$("micStatus").textContent="Speech captured. Tap Translate."; $("micStatus").classList.remove("recording");recognition=null};try{recognition.start()}catch(e){$("micStatus").textContent="Could not start microphone. Try again or use keyboard dictation."}};
+function renderHistory(){let a=[];try{a=JSON.parse(localStorage.getItem(historyKey)||"[]")}catch{};$("history").innerHTML=a.length?a.map(x=>`<div class="history-item"><div class="from">${esc(x.from)}</div><div class="to">${esc(x.to)}</div></div>`).join(""):'<div class="note">Your recent translations will appear here on this device.</div>'}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+$("clearHistory").onclick=()=>{localStorage.removeItem(historyKey);renderHistory()};
+if("serviceWorker"in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(()=>{}));
+renderHistory();
+</script>
+</body></html>
